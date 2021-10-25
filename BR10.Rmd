@@ -1,0 +1,190 @@
+---
+title: "BR10"
+author: "Steph Jordan"
+output: html_notebook
+---
+```{r}
+# Load packages
+library(bayesrules)
+library(tidyverse)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(tidybayes)
+library(janitor)
+library(broom.mixed)
+```
+
+
+## Exercise 10.1
+1. How fair is the model? We can evaluate this based on a series of smaller questions: 1) How was the data collected? 2) By whom and for what purpose was the data collected? 3) How might the results of the analysis, or the data collection itself, impact individuals and society? 4) What biases might be baked into this analysis?
+
+2. How wrong is the model? We can evaluate this by checking the model assumptions. Specifically, we want to ensure that three assumptions baked into our regression model are true: 1) Conditioned on X, the observed data Yi on case i is independent of the observed data on any other case j; 2) the typical Y outcome can be written as a linear function of X; 3) at any X value, Y varies normally around mu with consistent variability sigma.
+
+3. How accurate are the posterior predictive models? We can assess this by measuring the distance of the predicted mean and the observed mean, by calculating how may posterior SDs our observed mean is from the predicted mean, or by assessing which percentile of the predictive distribution the observed mean falls within.
+
+## Exercise 10.2
+a. The data was collected from consumer's online shopping behavior without their consent.
+
+b. The data is collected to inform a algorithm that is used for price discrimination. 
+
+c. A hiring algorithm discriminates against racial minorities.
+
+d. An algorithm used to calculate risk assessments (like morbidity estimates, and estimated level of care needed), which is based off of existing health care costs, underestimates the care that racial minorities need because they historically don't receive as much access to treatment as white people. Therefore, an algorithm that assesses care needs based off data that drawn from a healthcare system that disproportionately serves white people will underestimate the health care needs and risk profiles of racial minorities. 
+
+## Exercise 10.3
+a. I grew up in Massachusetts on the east coast of the U.S. and am white. I have benefited from immense privilege in terms of my race, familial background, and the educational opportunities I've had access to throughout my life. 
+
+b. My perspective might limit my capacity to understand the implicit biases baked into either the data itself or the algorithm's design. For instance, after reading the article about the health care algorithm's mistaken risk assessments due to racial biases in health care data (https://www.science.org/doi/full/10.1126/science.aax2342), which I wouldn't have necessarily thought about before, I am now going to try to interrogate the ways in which structural racism and discrimination generally might contaminate data that is otherwise "well-collected." Especially with algorithms that have "normative" implications--i.e. are used to change society (even in ways as basic as informing hiring decisions)--it is incredibly important to ensure that training datasets represent the outcomes we'd like to see (this does not mean "proscribing" outcomes-- it just means, once we get outcomes, assuring that they are not discriminatory, rather than assuming naively that the model works as we ideally hoped it would). 
+
+c. I don't really think my privilege gives me much comparative advantage in terms of spotting biases in model design. I think it is more something that I will have to keep checking less it lead to my making false assumptions or overlooking subtleties with significant implications. 
+
+## Exercise 10.4
+a. There is no such thing as a neutral perspective. Everyone has some bias based on their identity, which informs how they perceive the world
+
+b. Your model was still created by you. Therefore, during data collection or analysis, it is possible that your biases were baked into your model. Furthermore, often data collected *from the real world* still contains bias due to structural discrimination. Therefore, simply using real-world data, regardless of your personal bias, can contaminate your model. 
+
+c. I worked on a project that studied the opioid crisis in Massachusetts. Because I knew the regions in which it was worst, I was able to identify which counties to focus on.
+
+## Exercise 10.5
+Models are attempts to simplify a complicated world into sets of rules designed by humans. But humans could never comprehend, much less articulate, the real world in all of its complexity. Therefore, all models are inherently going to be inaccurate, or perhaps, incomplete.
+
+
+## Exercise 10.6
+1) Conditioned on X, the observed data Yi on case i is independent of the observed data on any other case j; 2) the typical Y outcome can be written as a linear function of X; 3) at any X value, Y varies normally around mu with consistent variability sigma.
+
+## Exercise 10.7
+a. We simulate a Y outcome from the Normal data model tuned to this first parameter set (-1.8, 2.1, 0.8).
+
+b. This process is shown below:
+```{r}
+beta_0 <- -1.8
+beta_1 <- 2.1
+sigma  <- 0.8
+set.seed(84735)
+
+x <- c(12, 10, 4, 8, 6)
+y <- c(20, 17, 4, 11, 9)
+data<- data.frame(x, y)
+
+one_simulation <- data %>% 
+  mutate(mu = beta_0 + beta_1 * x,
+         simulated_y = rnorm(5, mean = mu, sd = sigma)) %>% 
+  select(x, y, simulated_y) %>% 
+  mutate(y_avg=mean(y), y_sim_avg=mean(simulated_y))
+one_simulation
+```
+
+There is a pretty sizable difference between the predicted and observed Y values. The difference between means is 3.1. 
+
+
+## Exercise 10.8
+a. The goal of this check is to compare the observed outcome values with the predictive model's outputted values. We hope to observe minimal differences between these sets of values.
+
+b. One measurement of posterior prediction error is just the difference between the observed mean (or median) and the predicted mean (or median). This tells us about the means/medians of the observed and predicted values compare. Another measure is how many standard deviations our observed value falls from the posterior predicted mean/median; this tells us about how the distributions of the observed and predicted values compare. Lastly, there is the interval measure of error: we assess the proportion of observed values that fall within the 50% (or 95%) posterior prediction interval.
+
+## Exercise 10.9
+a. The median absolute error tells us about the distance the predictive median is from the observed median. 
+
+b. The scaled median tells us about the typical number of standard deviations the observed Y values from their posterior predictive counterparts (Yi). This is useful because it is scaled to reflect the spread of the distribution, whereas the absolute distance is not. Therefore, the MAE scaled is more useful for cross-study comparisons of accuracy, where the accuracy of predictive models generally is assessed.
+
+c. The within-50 statistic tells us about the percentage of observed Y values that fall within the 50% posterior prediction interval. This encapsulates how much of our observed data falls within the majority distribution of our predicted data. 
+
+## Exercise 10.10
+
+a. The darker density represents the actual observed data; the light color represents the posterior predicted data.
+
+b. If predicted Y values are similar in feature (shape of distribution) to the original Y data, we can believe our model assumptions are legitimate, and that we have chosen the right type of model. A good fitting model will produce a plot that follows the observed distribution because it is a "good fit"--i.e., it predicts values that are close to the observed values.
+
+c. If our model fits poorly, its pp_check() predicted plot line would be starkly divergent from the observed Y values.
+
+## Exercise 10.11
+
+a. x=abundance of anchovies in meal; y=Reem's rating of meal
+
+b. Reem's tastes (how much the presence of anchovies affects her rating of a meal)
+
+c. Train your model with a bunch of Reem's previous ratings of meals. Test it on a new taco recipe.
+
+d. Cross-validation would help you develop a successful recipe because if you don't use cross-validation (i.e. use full Reem dataset for both training and testing) you will produce a model that's very good at predicting *Reem's* tastes, but not very good at producing general predictions of good recipes. If we train and test on separate datasets (by splitting the data), we're more likely to produce a successful recipe when we apply our model to *new* data.  
+
+
+## Exercise 10.12
+a. 1) create folds: split data into k non-overlapping folds ranging from 2 to our original sample size (n); 2) train and test the model: train the model using the combined data in the first k-1 folds, test this model on the kth data fold, measure the prediction quality (e.g. using MAE); 3) repeat step 2 k-1 times, each time leaving ut a different fold for testing; 4) calculate cross-validation estimates: average the prediction measures from step 3 to obtain a single cross-validation estimate of prediction quality. 
+
+b. If we use the same data to train and test a model, we risk "overfitting"--producing a model that is very good at performing on a particular dataset, but is not very generalizable.
+
+c. I wonder about how we can compare different iterations' performances--e.g. those with high MAE vs low MAE, to understand what values the model is good/bad at predicting, and thus adapt our algorithm between training iterations to improve performance on those values for which it had high MAE. 
+
+## Exercise 10.13
+Downloading data
+```{r}
+data("coffee_ratings")
+coffee_ratings <- coffee_ratings %>% 
+  select(farm_name, total_cup_points, aroma, aftertaste)
+
+head(coffee_ratings)
+```
+
+a. Aroma and aftertaste appear to be correlated with the farm the beans come from. Therefore, this data violates the independence assumption of the Bayesian regression model.
+
+b. Selecting one sample per farm
+```{r}
+set.seed(84735)
+new_coffee <- coffee_ratings %>% 
+  group_by(farm_name) %>% 
+  sample_n(1) %>% 
+  ungroup()
+dim(new_coffee)
+```
+
+## Exercise 10.14
+a. Plotting relationship between rating and aroma
+```{r}
+ggplot(new_coffee, aes(y = total_cup_points, x = aroma)) + 
+  geom_point(size = 0.2) + 
+  geom_smooth(method = "lm", se = FALSE)
+```
+b. Using stan_glm() to simulate the normal regression model
+```{r}
+coffee_model <- stan_glm(total_cup_points ~ aroma, data = new_coffee,
+                       family = gaussian,
+                       prior_intercept = normal(75, 10),
+                       prior = normal(9, 0.1), 
+                       prior_aux = exponential(0.001),
+                       chains = 4, iter = 4000*2, seed = 84735)
+```
+
+c. Visual and numerical summaries of B1:
+```{r}
+# Trace plots of parallel chains
+mcmc_trace(coffee_model, size = 0.1)
+
+# Density plots of parallel chains
+mcmc_dens_overlay(coffee_model)
+```
+
+Some summary statistics:
+```{r}
+# Posterior summary statistics
+tidy(coffee_model, effects = c("fixed", "aux"),
+     conf.int = TRUE, conf.level = 0.80)
+```
+
+c. The posterior median of B1 is around 8.7. This means that the median increase in total cup points for a one unit increase in aroma is 8.7.
+
+d. Yes. Since the 80% confidence interval for B1 is entirely positive, we can safely assume that there is a posiitve relationship between aroma and rating.
+## Exercise 10.15
+
+## Exercise 10.16
+
+## Exercise 10.17
+
+## Exercise 10.18
+
+## Exercise 10.19
+
+## Exercise 10.20
+
+## Exercise 10.21
+
