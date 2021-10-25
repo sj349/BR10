@@ -174,17 +174,227 @@ tidy(coffee_model, effects = c("fixed", "aux"),
 c. The posterior median of B1 is around 8.7. This means that the median increase in total cup points for a one unit increase in aroma is 8.7.
 
 d. Yes. Since the 80% confidence interval for B1 is entirely positive, we can safely assume that there is a posiitve relationship between aroma and rating.
+
 ## Exercise 10.15
+
+a. Select the first set from our simulated runs:
+```{r}
+coffee_df <- as.data.frame(coffee_model)
+first_set <- head(coffee_df, 1)
+first_set
+```
+Using the first parameter set to simulate 572 new coffee ratings from the observed aroma grades
+```{r}
+View(coffee_df)
+```
+
+
+```{r}
+beta_0 <- first_set$`(Intercept)`
+beta_1 <- first_set$aroma
+sigma  <- first_set$sigma
+set.seed(84735)
+one_simulation <- new_coffee %>% 
+  mutate(mu = beta_0 + beta_1 * aroma,
+         simulated_ratings = rnorm(572, mean = mu, sd = sigma)) %>% 
+  select(aroma, total_cup_points, simulated_ratings)
+
+one_simulation
+```
+b. Constructing density plot
+```{r}
+ggplot(one_simulation, aes(x = simulated_ratings)) + 
+  geom_density(color = "lightblue") + 
+  geom_density(aes(x = total_cup_points), color = "darkblue")
+```
+Light blue represents one simulated posterior dataset; dark blue represents the actual observed total cup points. It appears that the simulation's distribution has a higher degree of variance than the observed data. The actual data is much more concentrated, and has a slightly higher median. 
+
+c. Using pp_check() 
+```{r}
+
+pp_check(coffee_model, nreps = 50) + 
+  xlab("total_cup_points")
+```
+
+Again, the observed distribution has much lower variance than the simulated distributions. Also, the observed distribution is "smoothed" -- does not adequately capture the bumps in density on the left side of the distribution. 
+
+d. I think our choice to use a Normal model is reasonable. Despite the small "bumps" along the left side, the observed data is normally shaped. I think the deviance between our predictions and the observed distribution might result from the weakly informative priors we used in our posterior model.
+
 
 ## Exercise 10.16
 
+a. Simulating and plotting a posterior model for the 7.67 aroma rating
+```{r}
+#we'll use the same first set coefficients
+beta_0 <- first_set$`(Intercept)`
+beta_1 <- first_set$aroma
+sigma  <- first_set$sigma
+
+set.seed(84735)
+predict_767 <- coffee_df %>% 
+  mutate(mu = `(Intercept)` + aroma*7.67,
+         y_new = rnorm(16000, mean = mu, sd = sigma))
+
+# Plot the posterior predictive model
+ggplot(predict_767, aes(x = y_new)) + 
+  geom_density()
+```
+b. Calculating raw error:
+```{r}
+predict_767 %>% 
+  summarize(mean = mean(y_new), error = 84 - mean(y_new))
+
+```
+Calculating standardized error:
+```{r}
+predict_767 %>% 
+  summarize(sd = sd(y_new), error = 84 - mean(y_new),
+            error_scaled = error / sd(y_new))
+```
+c. Constructing a ppc_intervals() plot:
+
+```{r}
+set.seed(84735)
+predictions <- posterior_predict(coffee_model, newdata = new_coffee)
+dim(predictions)
+
+ppc_intervals(new_coffee$total_cup_points, yrep = predictions, x = new_coffee$aroma, 
+              prob = 0.5, prob_outer = 0.95)
+```
+The dark blue datapoints represent the observed values. The light blue dots are the posterior predictive medians for each aroma (x). The 50% prediction intervals are the thicker blue bars; the 95% prediction intervals are the narrow blue bars. Since the observed dark blue dots overlap with the 95% confidence intervals for most aroma values, and with the 50% intervals for an even greater majority of aroma values, this plot tells us that the posterior model is producing pretty accurate predictions.  
+
+d. How many batches have observed ratings that are within their 50% posterior prediction interval?
+```{r}
+set.seed(84735)
+prediction_summary(coffee_model, data = new_coffee)
+```
+64% of batches fall within the 50% posterior prediction interval.
+
 ## Exercise 10.17
+
+a. Using prediction_summary_cv()
+```{r}
+set.seed(84735)
+cv_procedure <- prediction_summary_cv(
+  model = coffee_model, data = new_coffee, k = 10)
+```
+```{r}
+cv_procedure$folds
+cv_procedure$cv
+```
+
+b. The MAE measures the typical difference between the observed and predicted Y values. The average MAE is 1.08. The scaled median absolute error measures the typical number of standard deviations that the observed Y values are from their predicted counterparts. The average MAE scaled is 0.51. The average within_50 percent across all 10 folds is 62%; this means that on average, 62% of batches fall within their 50% prediction interval. The average within_95 percent across all 10 folds is 96%; this means that on average, 96% of batches fall within their 95% prediction interval. 
+
+c. We can compare these values from the 10 folds to those that arise when we run the summary on the entire dataset:
+```{r}
+set.seed(84735)
+prediction_summary(coffee_model, data = new_coffee)
+```
+These values are quite similar, which suggests that our 10-fold split worked as well as training the data on the entire dataset. 
 
 ## Exercise 10.18
 
+We can answer this question by asking: 1) how was the data collected? (we don't know this); 2) by whom and for what purpose was data collected? we don't know who collected the data, but presumably it was for the purpose of evaluating the ratings of coffee beans based on which farm they come from, which might or might not have discriminatory implications (depending on the application of our model, if this algorithm is used to inform which farms are given a higher advertising budget, which farms are more highly exported, etc, then it could have discriminatory repurcussions); 3) what biases may be baked into the analysis? we need to know the sample population who produced the ratings. If the population that gave rise to the data is skewed, then the model will also not be representative of a broad set of demographics tastes. 
+
 ## Exercise 10.19
 
+a. Simulating normal regression model with aftertaste:
+```{r}
+coffee_model_2 <- stan_glm(total_cup_points ~ aftertaste, data = new_coffee,
+                       family = gaussian,
+                       prior_intercept = normal(75, 10),
+                       prior = normal(9, 0.1), 
+                       prior_aux = exponential(0.001),
+                       chains = 4, iter = 4000*2, seed = 84735)
+```
+
+b. Plotting to see how model compares to observations
+
+```{r}
+pp_check(coffee_model_2, nreps = 50) + 
+  xlab("total_cup_points")
+```
+
+The model looks like it generally follows the same median as the observed distribution. However, the observed distribution has a much lower level of variance than the predicted posterior model. Also, the predicted model again fails to capture the set of "bumps" on the left tail of the distribution. Again, this could be due to our weakly informative priors, not the normal model being a poor fit. 
+
+c. Obtaining 10 cross-fold validation metrics:
+```{r}
+set.seed(84735)
+cv_procedure <- prediction_summary_cv(
+  model = coffee_model_2, data = new_coffee, k = 10)
+```
+```{r}
+cv_procedure$folds
+```
+```{r}
+cv_procedure$cv
+```
+d. Which is the better predictor, aroma or aftertaste? It appears that aftertaste has a lower MAE and scaled MAE, and a comparable within_50/within_95 percentage. Therefore, I would say that aftertaste is the better predictor of the two. 
+
 ## Exercise 10.20
+
+a. Fitting the model:
+```{r}
+data("weather_perth")
+weather_data <- weather_perth %>% 
+  select(maxtemp, mintemp)
+
+head(weather_data)
+
+
+```
+Plot it quickly to get a sense of priors
+```{r}
+ggplot(weather_data, aes(y = maxtemp, x = mintemp)) + 
+  geom_point(size = 0.2) + 
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+
+```{r}
+weather_model <- stan_glm(maxtemp ~ mintemp, data = weather_data,
+                       family = gaussian,
+                       prior_intercept = normal(10, 2),
+                       prior = normal(2, 0.1), 
+                       prior_aux = exponential(0.001),
+                       chains = 4, iter = 4000*2, seed = 84735)
+```
+
+b. Checking out some summary stats:
+```{r}
+# Posterior summary statistics
+tidy(weather_model, effects = c("fixed", "aux"),
+     conf.int = TRUE, conf.level = 0.80)
+```
+The for every 1 degree increase in mintemp, max temp goes about by 0.91 on average. At a min temp of 0, the max temp is about 13.4 on average. There is a high degree of variance in the distribution's spread around the mean (average SD==4.31), meaning the predicted outcomes are fairly widely varied. 
+
+c. First, we will produce some plots:
+```{r}
+
+pp_check(weather_model, nreps = 50) + 
+  xlab("maxtemp")
+
+```
+```{r}
+set.seed(84735)
+predictions <- posterior_predict(weather_model, newdata = weather_data)
+dim(predictions)
+```
+
+
+```{r}
+ppc_intervals(weather_data$maxtemp, yrep = predictions, x = weather_data$mintemp, 
+              prob = 0.5, prob_outer = 0.95)
+```
+
+Based on the first plot (ppcheck()) the posterior prediction seems to miss a key downward blip in the distribution, which almost makes me think that a normal model isn't a good fir for this data. The ppc_intervals plot also looks very different from the other one we produced--while much of the data fall within the 95% interval, very little falls within the 50% interval. 
+
+```{r}
+set.seed(84735)
+prediction_summary(weather_model, data = weather_data)
+```
+
+This is confirmed in our statistical check--the within_50 percentage is very low (45%). Based on the model's deviance from the observed distribution, and our summary statistics, I would say that for this bimodal distribution, perhaps a normal model isn't the best fit. 
 
 ## Exercise 10.21
 
