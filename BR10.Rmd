@@ -1,7 +1,9 @@
 ---
 title: "BR10"
 author: "Steph Jordan"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 ```{r}
 # Load packages
@@ -110,7 +112,7 @@ d. Cross-validation would help you develop a successful recipe because if you do
 
 
 ## Exercise 10.12
-a. 1) create folds: split data into k non-overlapping folds ranging from 2 to our original sample size (n); 2) train and test the model: train the model using the combined data in the first k-1 folds, test this model on the kth data fold, measure the prediction quality (e.g. using MAE); 3) repeat step 2 k-1 times, each time leaving ut a different fold for testing; 4) calculate cross-validation estimates: average the prediction measures from step 3 to obtain a single cross-validation estimate of prediction quality. 
+a. Step 1: create folds: split data into k non-overlapping folds ranging from 2 to our original sample size (n); 2) train and test the model: train the model using the combined data in the first k-1 folds, test this model on the kth data fold, measure the prediction quality (e.g. using MAE); 3) repeat step 2 k-1 times, each time leaving ut a different fold for testing; 4) calculate cross-validation estimates: average the prediction measures from step 3 to obtain a single cross-validation estimate of prediction quality. 
 
 b. If we use the same data to train and test a model, we risk "overfitting"--producing a model that is very good at performing on a particular dataset, but is not very generalizable.
 
@@ -145,6 +147,7 @@ ggplot(new_coffee, aes(y = total_cup_points, x = aroma)) +
   geom_point(size = 0.2) + 
   geom_smooth(method = "lm", se = FALSE)
 ```
+
 b. Using stan_glm() to simulate the normal regression model
 ```{r}
 coffee_model <- stan_glm(total_cup_points ~ aroma, data = new_coffee,
@@ -184,10 +187,6 @@ first_set <- head(coffee_df, 1)
 first_set
 ```
 Using the first parameter set to simulate 572 new coffee ratings from the observed aroma grades
-```{r}
-View(coffee_df)
-```
-
 
 ```{r}
 beta_0 <- first_set$`(Intercept)`
@@ -207,6 +206,8 @@ ggplot(one_simulation, aes(x = simulated_ratings)) +
   geom_density(color = "lightblue") + 
   geom_density(aes(x = total_cup_points), color = "darkblue")
 ```
+
+
 Light blue represents one simulated posterior dataset; dark blue represents the actual observed total cup points. It appears that the simulation's distribution has a higher degree of variance than the observed data. The actual data is much more concentrated, and has a slightly higher median. 
 
 c. Using pp_check() 
@@ -239,6 +240,8 @@ predict_767 <- coffee_df %>%
 ggplot(predict_767, aes(x = y_new)) + 
   geom_density()
 ```
+
+
 b. Calculating raw error:
 ```{r}
 predict_767 %>% 
@@ -398,3 +401,66 @@ This is confirmed in our statistical check--the within_50 percentage is very low
 
 ## Exercise 10.21
 
+a. Tuning model for rides by humidity
+```{r}
+data("bikes")
+bikes <- bikes %>% 
+  select(rides, humidity)
+
+head(bikes)
+
+
+```
+Plot it quickly to get a sense of priors
+```{r}
+ggplot(bikes, aes(y = rides, x = humidity)) + 
+  geom_point(size = 0.2) + 
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+bikes_model <- stan_glm(rides ~ humidity, data = bikes,
+                       family = gaussian,
+                       prior_intercept = normal(4000, 100),
+                       prior = normal(10, 1), 
+                       prior_aux = exponential(0.01),
+                       chains = 4, iter = 4000*2, seed = 84735)
+```
+
+b. Checking out some summary stats:
+```{r}
+# Posterior summary statistics
+tidy(bikes_model, effects = c("fixed", "aux"),
+     conf.int = TRUE, conf.level = 0.80)
+```
+The for every 1 unit increase in humidity, number of rides goes about by 9.23 on average. At a humidity level of 0, the number of rides is 3068 on average. There is a high degree of variance in the distribution's spread around the mean (average SD==1578), meaning the predicted outcomes are fairly widely varied. 
+
+c. First, we will produce some plots:
+```{r}
+
+pp_check(bikes_model, nreps = 50) + 
+  xlab("humidity")
+
+```
+
+Again, the predicted posterior neglects to account for some bimodal-ness in the distribution. However, this time, the variance estimated is closer to the observed level, and the predicted median is more closely aligned with the observed median. 
+
+```{r}
+set.seed(84735)
+predictions <- posterior_predict(bikes_model, newdata = bikes)
+dim(predictions)
+```
+
+
+```{r}
+ppc_intervals(bikes$rides, yrep = predictions, x = bikes$humidity, 
+              prob = 0.5, prob_outer = 0.95)
+```
+
+These 50% and 95% posterior predictive intervals are very large because our estimated sigma is so large. Most of our observed values fall within the 95% predictive intervals, but not within the 50% intervals (as shown more clearly in the statistics below). It is not problematic that the intervals are so long because this captures the true spread of the data--our model is correct to predict such a high level of variance, because humidity and ridership are not that strongly correlated.
+
+```{r}
+set.seed(84735)
+prediction_summary(bikes_model, data = bikes)
+```
+This is an example in which the MAE and MAE scaled vary greatly, because the sigma is so large. Here, it's more useful to look at MAE scaled to get a sense of how much error we're dealing with. I'm honestly not sure if I should say that the normal model is a good fit here because the distribution has bimodal tendencies. I don't know of a model that best approximates such a distribution...so perhaps normal is not the *best* but it is *ok* or the best we can manage.
