@@ -77,7 +77,7 @@ one_simulation <- data %>%
 one_simulation
 ```
 
-There is a pretty sizable difference between the predicted and observed Y values. The difference between means is 3.1. 
+There is a pretty sizable difference between the predicted and observed Y values. The difference between y observed and y predicted ranges between 2 and 4.  
 
 
 ## Exercise 10.8
@@ -219,7 +219,7 @@ pp_check(coffee_model, nreps = 50) +
 
 Again, the observed distribution has much lower variance than the simulated distributions. Also, the observed distribution is "smoothed" -- does not adequately capture the bumps in density on the left side of the distribution. 
 
-d. I think our choice to use a Normal model is reasonable. Despite the small "bumps" along the left side, the observed data is normally shaped. I think the deviance between our predictions and the observed distribution might result from the weakly informative priors we used in our posterior model.
+d. I think our choice to use a Normal model is reasonable. Despite the small "bumps" along the left side, the observed data is normally shaped--however, though the observed data follows a normal distribution, our predictions still don't accurately reflect the observed data's shape. I think the deviance between our predictions and the observed distribution could result from the weakly informative priors we used in our posterior model.
 
 
 ## Exercise 10.16
@@ -318,7 +318,7 @@ pp_check(coffee_model_2, nreps = 50) +
   xlab("total_cup_points")
 ```
 
-The model looks like it generally follows the same median as the observed distribution. However, the observed distribution has a much lower level of variance than the predicted posterior model. Also, the predicted model again fails to capture the set of "bumps" on the left tail of the distribution. Again, this could be due to our weakly informative priors, not the normal model being a poor fit. 
+The model looks like it generally follows the same median as the observed distribution. However, the observed distribution has a much lower level of variance than the predicted posterior model. Also, the predicted model again fails to capture the set of "bumps" on the left tail of the distribution. Therefore, I would say the normal model is not the best fit, or our priors could perhaps be improved. 
 
 c. Obtaining 10 cross-fold validation metrics:
 ```{r}
@@ -390,14 +390,14 @@ ppc_intervals(weather_data$maxtemp, yrep = predictions, x = weather_data$mintemp
               prob = 0.5, prob_outer = 0.95)
 ```
 
-Based on the first plot (ppcheck()) the posterior prediction seems to miss a key downward blip in the distribution, which almost makes me think that a normal model isn't a good fir for this data. The ppc_intervals plot also looks very different from the other one we produced--while much of the data fall within the 95% interval, very little falls within the 50% interval. 
+Based on the first plot (ppcheck()) the posterior prediction seems to miss a key downward blip in the distribution, which almost makes me think that a normal model isn't a good fit for this data. The ppc_intervals plot also looks very different from the other one we produced--while much of the data fall within the 95% interval, very little falls within the 50% interval. 
 
 ```{r}
 set.seed(84735)
 prediction_summary(weather_model, data = weather_data)
 ```
 
-This is confirmed in our statistical check--the within_50 percentage is very low (45%). Based on the model's deviance from the observed distribution, and our summary statistics, I would say that for this bimodal distribution, perhaps a normal model isn't the best fit. 
+This is confirmed in our statistical check--the within_50 percentage is very low (45%). Based on the model's deviance from the observed distribution, and our summary statistics, I would say that for this bimodal distribution, perhaps we have attempted to combine two normal distributions (each with its own mean); therefore, perhaps a single normal model isn't the best fit for this dataset. 
 
 ## Exercise 10.21
 
